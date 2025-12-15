@@ -16,7 +16,8 @@
 ```
 1. 类型检查（tsc）
 2. 打包 zip（wxt zip：Chrome/Edge + Firefox）
-3. 上传 workflow artifacts（.output/**/*.zip）
+3. 收集构建产物（复制到 `artifacts/`）
+4. 上传 workflow artifacts（`artifacts/*.zip`，包含 firefox 的 `*-sources.zip`）
 ```
 
 #### 自动发布（标签 `v*`）
@@ -24,7 +25,8 @@
 1. 类型检查（tsc）
 2. 校验版本号：package.json.version 必须与 tag 版本一致（不含 v）
 3. 打包 zip（wxt zip：Chrome/Edge + Firefox）
-4. 创建 GitHub Release 并上传 zip（.output/**/*.zip）
+4. 收集 Release 资产（复制到 `release-assets/`，不包含 `*-sources.zip`）
+5. 创建 GitHub Release 并上传 zip（`release-assets/*.zip`）
 ```
 
 ### 使用方法

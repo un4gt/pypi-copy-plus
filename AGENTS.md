@@ -41,5 +41,5 @@ Use Bun (matches CI):
 
 ## Release (Tags)
 
-- Pushing a `v*` tag triggers `.github/workflows/ci.yml` to type-check, build, and upload `.output/*.zip` artifacts to a GitHub Release.
+- Pushing a `v*` tag triggers `.github/workflows/ci.yml` to type-check, build via `wxt zip`, and upload Chrome/Firefox `.zip` files to a GitHub Release (excludes `*-sources.zip`).
 - Keep `CHANGELOG.md` updated and use semantic tags like `v1.1.0` (local build: `bun run release`).

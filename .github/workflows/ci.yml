@@ -32,11 +32,18 @@ jobs:
           bunx --no-install wxt zip
           bunx --no-install wxt zip -b firefox
 
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          find .output -type f -name '*.zip' -print -exec cp -v {} artifacts/ \;
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: pypi-copy-plus-zips
-          path: .output/**/*.zip
+          path: artifacts/*.zip
           if-no-files-found: error
 
   release:
@@ -79,6 +86,15 @@ jobs:
           bunx --no-install wxt zip
           bunx --no-install wxt zip -b firefox
 
+      - name: Collect release assets (exclude sources)
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          mkdir -p release-assets
+          cp -v .output/*-"${VERSION}"-chrome.zip release-assets/
+          cp -v .output/*-"${VERSION}"-firefox.zip release-assets/
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
@@ -100,7 +116,7 @@ jobs:
 
             See `CHANGELOG.md` in the repository.
           files: |
-            .output/**/*.zip
+            release-assets/*.zip
           draft: false
           prerelease: false
         env:
