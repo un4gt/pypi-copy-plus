@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="#F59E0B" />
+  <text
+    x="32"
+    y="34"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif"
+    font-size="22"
+    font-weight="800"
+    fill="#fff"
+  >
+    rye
+  </text>
+</svg>

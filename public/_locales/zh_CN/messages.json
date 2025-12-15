@@ -1,0 +1,47 @@
+{
+  "extName": {
+    "message": "PyPI Copy Plus"
+  },
+  "extDescription": {
+    "message": "使用你喜欢的包管理工具自定义 PyPI 包安装命令"
+  },
+  "settingsTitle": {
+    "message": "PyPI Copy Plus 设置"
+  },
+  "selectLanguage": {
+    "message": "语言"
+  },
+  "languageAuto": {
+    "message": "自动"
+  },
+  "languageEnglish": {
+    "message": "English"
+  },
+  "languageZh": {
+    "message": "简体中文"
+  },
+  "languageZhTW": {
+    "message": "繁体中文"
+  },
+  "selectPackageManager": {
+    "message": "包管理工具"
+  },
+  "selectTheme": {
+    "message": "主题"
+  },
+  "themeLight": {
+    "message": "浅色"
+  },
+  "themeDark": {
+    "message": "深色"
+  },
+  "themeSystem": {
+    "message": "跟随系统"
+  },
+  "saveButton": {
+    "message": "保存"
+  },
+  "savedMessage": {
+    "message": "设置保存成功！"
+  }
+}

@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+jobs:
+  ci:
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/heads/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Type check
+        run: bun run compile
+
+      - name: Package extensions (wxt zip)
+        run: |
+          bunx --no-install wxt zip
+          bunx --no-install wxt zip -b firefox
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pypi-copy-plus-zips
+          path: .output/**/*.zip
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Type check
+        run: bun run compile
+
+      - name: Get version from tag
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Validate version matches tag
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$PKG_VERSION" != "$VERSION" ]; then
+            echo "package.json version ($PKG_VERSION) does not match tag ($VERSION)."
+            exit 1
+          fi
+
+      - name: Package extensions (wxt zip)
+        run: |
+          bunx --no-install wxt zip
+          bunx --no-install wxt zip -b firefox
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## PyPI Copy Plus ${{ github.ref_name }}
+
+            ### Download
+
+            - Chrome/Edge: `pypi-copy-plus-${{ steps.version.outputs.VERSION }}-chrome.zip`
+            - Firefox: `pypi-copy-plus-${{ steps.version.outputs.VERSION }}-firefox.zip`
+
+            ### Install
+
+            - Chrome/Edge: extract the zip, then load it via `chrome://extensions/` (Developer mode → Load unpacked).
+            - Firefox: install the zip via `about:addons` (Install Add-on From File).
+
+            ### Changelog
+
+            See `CHANGELOG.md` in the repository.
+          files: |
+            .output/**/*.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

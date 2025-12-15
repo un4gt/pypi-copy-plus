@@ -1,0 +1,29 @@
+{
+  "name": "pypi-copy-plus",
+  "description": "Customize PyPI package installation commands with your preferred package manager",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox",
+    "compile": "tsc --noEmit",
+    "postinstall": "wxt prepare",
+    "build:all": "bun run build && bun run build:firefox",
+    "package:all": "bun run zip && bun run zip:firefox",
+    "release": "bun run build:all && bun run package:all"
+  },
+  "dependencies": {
+    "solid-js": "^1.9.9"
+  },
+  "devDependencies": {
+    "@wxt-dev/auto-icons": "^1.1.0",
+    "@wxt-dev/module-solid": "^1.1.3",
+    "typescript": "^5.9.2",
+    "wxt": "^0.20.6"
+  }
+}
