@@ -6,19 +6,9 @@
 
 ### 触发条件
 
-1. **推送到 `main` 分支** - 运行 CI
-2. **创建 Pull Request** - 运行 CI
-3. **推送标签 (`v*`)** - 自动发布到 GitHub Release
+1. **推送标签 (`v*`)** - 自动发布到 GitHub Release
 
 ### 执行流程
-
-#### CI（`main` 分支或 PR）
-```
-1. 类型检查（tsc）
-2. 打包 zip（wxt zip：Chrome/Edge + Firefox）
-3. 收集构建产物（复制到 `artifacts/`）
-4. 上传 workflow artifacts（`artifacts/*.zip`，包含 firefox 的 `*-sources.zip`）
-```
 
 #### 自动发布（标签 `v*`）
 ```
@@ -33,7 +23,7 @@
 
 **触发 CI 测试：**
 ```bash
-git push origin main
+# 本仓库不在 push/PR 时运行 workflow
 ```
 
 **触发自动发布：**

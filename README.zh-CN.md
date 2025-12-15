@@ -31,17 +31,15 @@ bun run zip           # 使用 `wxt zip`
 ## 多语言（i18n）
 
 - 默认语言为“自动”：读取 `browser.i18n.getUILanguage()`；无法识别时回退到英文。
-- 可在弹窗中手动切换语言，设置会通过 `browser.storage.sync` 持久化。
+- 可在弹窗中手动切换语言，设置会通过 `browser.storage.local` 持久化。
 
 ## CI & 发布
 
 GitHub Actions 工作流：`.github/workflows/ci.yml`
 
-- PR / push `main`：类型检查，使用 `wxt zip` 生成 zip，并上传为 workflow artifacts。
-- 推送标签 `v*`（如 `v1.1.0`）：生成 zip 并创建 GitHub Release，把 `.zip` 附加到 Release 资产中。
+- 推送标签 `v*`（如 `v1.1.0`）：使用 `wxt zip` 生成 zip 并创建 GitHub Release，把 `.zip` 附加到 Release 资产中（不包含 `*-sources.zip`）。
 - 发布校验：`package.json` 的 `version` 必须与标签版本一致（不含 `v`）。
 
 ## 许可证
 
 MIT
-

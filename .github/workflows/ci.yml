@@ -1,53 +1,12 @@
-name: CI
+name: Release
 
 on:
-  pull_request:
   push:
-    branches:
-      - main
     tags:
       - 'v*'
 
 jobs:
-  ci:
-    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/heads/')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Type check
-        run: bun run compile
-
-      - name: Package extensions (wxt zip)
-        run: |
-          bunx --no-install wxt zip
-          bunx --no-install wxt zip -b firefox
-
-      - name: Collect artifacts
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts
-          find .output -type f -name '*.zip' -print -exec cp -v {} artifacts/ \;
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: pypi-copy-plus-zips
-          path: artifacts/*.zip
-          if-no-files-found: error
-
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write

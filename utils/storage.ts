@@ -19,41 +19,61 @@ function isLanguagePreference(value: unknown): value is LanguagePreference {
   return value === 'auto' || value === 'en' || value === 'zh' || value === 'zh_TW';
 }
 
-export async function getPreferredPackageManager(): Promise<string> {
-  const result = await browser.storage.sync.get(STORAGE_KEY);
-  const managerId = result[STORAGE_KEY];
-  if (typeof managerId !== 'string') {
-    return DEFAULT_PACKAGE_MANAGER;
+// 兼容旧版本：曾使用 browser.storage.sync 存储设置。
+async function getWithSyncMigration<T>(
+  key: string,
+  validate: (value: unknown) => T | undefined,
+): Promise<T | undefined> {
+  const localResult = await browser.storage.local.get(key);
+  const localValue = validate(localResult[key]);
+  if (localValue !== undefined) return localValue;
+
+  try {
+    const syncResult = await browser.storage.sync.get(key);
+    const syncValue = validate(syncResult[key]);
+    if (syncValue === undefined) return;
+
+    await browser.storage.local.set({ [key]: syncValue });
+    return syncValue;
+  } catch {
+    return;
   }
-  return getPackageManager(managerId)?.id ?? DEFAULT_PACKAGE_MANAGER;
+}
+
+export async function getPreferredPackageManager(): Promise<string> {
+  const managerId = await getWithSyncMigration(STORAGE_KEY, (value) => {
+    if (typeof value !== 'string') return;
+    return getPackageManager(value)?.id;
+  });
+  return managerId ?? DEFAULT_PACKAGE_MANAGER;
 }
 
 export async function setPreferredPackageManager(managerId: string): Promise<void> {
   const validatedManagerId = getPackageManager(managerId)?.id ?? DEFAULT_PACKAGE_MANAGER;
-  await browser.storage.sync.set({ [STORAGE_KEY]: validatedManagerId });
+  await browser.storage.local.set({ [STORAGE_KEY]: validatedManagerId });
   // 通知所有标签页更新
   await notifyContentScripts();
 }
 
 export async function getTheme(): Promise<Theme> {
-  const result = await browser.storage.sync.get(THEME_KEY);
-  const theme = result[THEME_KEY];
-  return isTheme(theme) ? theme : DEFAULT_THEME;
+  const theme = await getWithSyncMigration(THEME_KEY, (value) => (isTheme(value) ? value : undefined));
+  return theme ?? DEFAULT_THEME;
 }
 
 export async function setTheme(theme: Theme): Promise<void> {
-  await browser.storage.sync.set({ [THEME_KEY]: theme });
+  await browser.storage.local.set({ [THEME_KEY]: theme });
 }
 
 export async function getLanguagePreference(): Promise<LanguagePreference> {
-  const result = await browser.storage.sync.get(LANGUAGE_KEY);
-  const language = result[LANGUAGE_KEY];
-  return isLanguagePreference(language) ? language : DEFAULT_LANGUAGE;
+  const language = await getWithSyncMigration(LANGUAGE_KEY, (value) =>
+    isLanguagePreference(value) ? value : undefined,
+  );
+  return language ?? DEFAULT_LANGUAGE;
 }
 
 export async function setLanguagePreference(language: LanguagePreference): Promise<void> {
   const validatedLanguage = isLanguagePreference(language) ? language : DEFAULT_LANGUAGE;
-  await browser.storage.sync.set({ [LANGUAGE_KEY]: validatedLanguage });
+  await browser.storage.local.set({ [LANGUAGE_KEY]: validatedLanguage });
 }
 
 // 通知所有内容脚本更新

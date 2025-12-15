@@ -31,14 +31,13 @@ bun run zip           # uses `wxt zip`
 ## i18n
 
 - Default language is `Auto` (derived from `browser.i18n.getUILanguage()`; falls back to English).
-- You can override language in the popup; the choice is persisted via `browser.storage.sync`.
+- You can override language in the popup; the choice is persisted via `browser.storage.local`.
 
 ## CI & Release
 
 GitHub Actions workflow: `.github/workflows/ci.yml`
 
-- PR / push to `main`: type-checks and builds release zips via `wxt zip`, then uploads them as workflow artifacts.
-- Tag `v*` (e.g. `v1.1.0`): builds zips via `wxt zip` and publishes a GitHub Release with attached `.zip` files.
+- Tag `v*` (e.g. `v1.1.0`): builds zips via `wxt zip` and publishes a GitHub Release with attached `.zip` files (excludes `*-sources.zip`).
 - Release safeguard: `package.json` version must match the tag (without the leading `v`).
 
 ## License

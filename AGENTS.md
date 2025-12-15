@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 
 - `entrypoints/`: Extension entrypoints (WXT). Includes `content.ts` (PyPI DOM updates), `background.ts`, and `popup/` (Solid UI).
-- `utils/`: Shared logic (e.g., `storage.ts` for `browser.storage` sync and `package-managers.ts` for command templates).
+- `utils/`: Shared logic (e.g., `storage.ts` for `browser.storage.local` settings and `package-managers.ts` for command templates).
 - Adding a new package manager usually touches `utils/package-managers.ts` and the command-matching regex in `entrypoints/content.ts`.
 - `public/_locales/<locale>/messages.json`: Extension i18n files (used by `browser.i18n` and extension metadata).
 - `src/_locales/<locale>/messages.json`: Importable i18n files for the popup’s in-app language override (`en/`, `zh/`, `zh_TW/`).

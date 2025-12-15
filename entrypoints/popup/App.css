@@ -30,6 +30,10 @@
   --theme-toggle-hover: #3a3f4b;
 }
 
+:root {
+  scrollbar-gutter: stable;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -184,6 +188,7 @@ h1 {
 }
 
 .pm-name {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
