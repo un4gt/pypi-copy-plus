@@ -6,7 +6,10 @@
 
 ## 预览
 
-[预览视频（mp4）](./preview/preview.mp4)
+<video width="960" height="540" controls>
+  <source src="./preview/preview.mp4?raw=true" type="video/mp4">
+  您的浏览器不支持 HTML5 视频。
+</video>
 
 ## 功能
 

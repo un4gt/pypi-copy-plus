@@ -1,6 +1,9 @@
 # PyPI Copy Plus
 
-[Preview video (mp4)](./preview/preview.mp4)
+<video width="960" height="540" controls>
+  <source src="./preview/preview.mp4?raw=true" type="video/mp4">
+  Your browser does not support HTML5 video.
+</video>
 
 [简体中文](README.zh-CN.md)
 
