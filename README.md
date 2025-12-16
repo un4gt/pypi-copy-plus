@@ -1,5 +1,7 @@
 # PyPI Copy Plus
 
+[Preview video (mp4)](./preview/preview.mp4)
+
 [简体中文](README.zh-CN.md)
 
 A browser extension that replaces the default `pip install <package>` command on `https://pypi.org/project/*` with your preferred Python package manager.
@@ -9,6 +11,20 @@ A browser extension that replaces the default `pip install <package>` command on
 - 8 package managers: `pip`, `uv`, `Poetry`, `Pipenv`, `Conda`, `PDM`, `Rye`, `Hatch`
 - Popup UI: theme (light/dark/system), language (Auto/EN/简体/繁體), and manager selection with icons
 - Instant updates: changing settings updates all open PyPI tabs (no refresh required)
+
+## Usage
+
+### Chrome / Edge
+
+1. Download `pypi-copy-plus-<version>-chrome.zip` from GitHub Releases and unzip it.
+2. Open `chrome://extensions/` (Edge: `edge://extensions/`) and enable Developer mode.
+3. Click “Load unpacked” and select the unzipped folder.
+
+### Firefox
+
+1. Download `pypi-copy-plus-<version>-firefox.zip` from GitHub Releases.
+2. Open `about:addons` → gear icon → “Install Add-on From File…”, then select the zip.
+   - If Firefox blocks unsigned add-ons, use Firefox Developer/Nightly or load it temporarily via `about:debugging#/runtime/this-firefox`.
 
 ## Development
 

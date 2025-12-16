@@ -4,11 +4,29 @@
 
 一个浏览器扩展：在 `https://pypi.org/project/*` 页面，将默认的 `pip install <package>` 替换为你常用的 Python 依赖管理工具命令。
 
+## 预览
+
+[预览视频（mp4）](./preview/preview.mp4)
+
 ## 功能
 
 - 支持 8 种工具：`pip`、`uv`、`Poetry`、`Pipenv`、`Conda`、`PDM`、`Rye`、`Hatch`
 - 弹窗设置：主题（浅色/深色/跟随系统）、语言（自动/英文/简体/繁體）、包管理器选择（含图标）
 - 即时更新：设置变更会通知所有已打开的 PyPI 标签页，无需刷新
+
+## 使用
+
+### Chrome / Edge
+
+1. 从 GitHub Releases 下载 `pypi-copy-plus-<版本>-chrome.zip` 并解压。
+2. 打开 `chrome://extensions/`（Edge：`edge://extensions/`），开启“开发者模式”。
+3. 点击“加载已解压的扩展程序”，选择解压后的文件夹。
+
+### Firefox
+
+1. 从 GitHub Releases 下载 `pypi-copy-plus-<版本>-firefox.zip`。
+2. 打开 `about:addons` → 右上角齿轮 → “从文件安装附加组件…”，选择该 zip。
+   - 如果 Firefox 阻止未签名扩展，可使用 Firefox Developer/Nightly，或通过 `about:debugging#/runtime/this-firefox` 临时加载。
 
 ## 开发
 
