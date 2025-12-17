@@ -71,9 +71,9 @@ jobs:
             - Chrome/Edge: extract the zip, then load it via `chrome://extensions/` (Developer mode → Load unpacked).
             - Firefox: install the zip via `about:addons` (Install Add-on From File).
 
-            ### Changelog
+            ### Notes
 
-            See `CHANGELOG.md` in the repository.
+            See the commit history for this tag in GitHub.
           files: |
             release-assets/*.zip
           draft: false
