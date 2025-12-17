@@ -4,12 +4,14 @@ import { getPackageManager } from './package-managers';
 export const STORAGE_KEY = 'preferredPackageManager';
 export const THEME_KEY = 'theme';
 export const LANGUAGE_KEY = 'language';
+export const FLOATING_BUTTON_POSITION_KEY = 'floatingButtonPosition';
 export const DEFAULT_PACKAGE_MANAGER = 'pip';
 export const DEFAULT_THEME = 'system';
 export const DEFAULT_LANGUAGE = 'auto';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type LanguagePreference = 'auto' | 'en' | 'zh' | 'zh_TW';
+export type FloatingButtonPosition = { x: number; y: number; viewportWidth?: number; viewportHeight?: number };
 
 function isTheme(value: unknown): value is Theme {
   return value === 'light' || value === 'dark' || value === 'system';
@@ -17,6 +19,22 @@ function isTheme(value: unknown): value is Theme {
 
 function isLanguagePreference(value: unknown): value is LanguagePreference {
   return value === 'auto' || value === 'en' || value === 'zh' || value === 'zh_TW';
+}
+
+function isFloatingButtonPosition(value: unknown): value is FloatingButtonPosition {
+  if (!value || typeof value !== 'object') return false;
+  const position = value as Record<string, unknown>;
+  const hasX = typeof position.x === 'number' && Number.isFinite(position.x);
+  const hasY = typeof position.y === 'number' && Number.isFinite(position.y);
+  if (!hasX || !hasY) return false;
+
+  if (position.viewportWidth !== undefined || position.viewportHeight !== undefined) {
+    const hasViewportWidth = typeof position.viewportWidth === 'number' && Number.isFinite(position.viewportWidth);
+    const hasViewportHeight = typeof position.viewportHeight === 'number' && Number.isFinite(position.viewportHeight);
+    return hasViewportWidth && hasViewportHeight;
+  }
+
+  return true;
 }
 
 // 兼容旧版本：曾使用 browser.storage.sync 存储设置。
@@ -76,14 +94,34 @@ export async function setLanguagePreference(language: LanguagePreference): Promi
   await browser.storage.local.set({ [LANGUAGE_KEY]: validatedLanguage });
 }
 
+export async function getFloatingButtonPosition(): Promise<FloatingButtonPosition | undefined> {
+  const result = await browser.storage.local.get(FLOATING_BUTTON_POSITION_KEY);
+  const position = result[FLOATING_BUTTON_POSITION_KEY];
+  return isFloatingButtonPosition(position) ? position : undefined;
+}
+
+export async function setFloatingButtonPosition(position: FloatingButtonPosition): Promise<void> {
+  await browser.storage.local.set({ [FLOATING_BUTTON_POSITION_KEY]: position });
+}
+
 // 通知所有内容脚本更新
 async function notifyContentScripts(): Promise<void> {
-  const tabs = await browser.tabs.query({ url: '*://pypi.org/project/*' });
-  for (const tab of tabs) {
-    if (tab.id) {
-      browser.tabs.sendMessage(tab.id, { type: 'UPDATE_COMMAND' }).catch(() => {
-        // 忽略错误（标签页可能已关闭）
-      });
+  try {
+    if (!browser.tabs?.query) throw new Error('tabs API is not available');
+
+    const tabs = await browser.tabs.query({ url: '*://pypi.org/project/*' });
+    for (const tab of tabs) {
+      if (tab.id) {
+        browser.tabs.sendMessage(tab.id, { type: 'UPDATE_COMMAND' }).catch(() => {
+          // 忽略错误（标签页可能已关闭）
+        });
+      }
+    }
+  } catch {
+    try {
+      await browser.runtime.sendMessage({ type: 'BROADCAST_UPDATE_COMMAND' });
+    } catch {
+      // Ignore.
     }
   }
 }
