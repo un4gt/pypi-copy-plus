@@ -53,6 +53,23 @@ const FLOATING_UI_ROOT_ID = 'pypi-copy-plus-floating-root';
 const DEFAULT_MARGIN_PX = 20;
 const PANEL_GAP_PX = 12;
 
+const VERSION_SELECT_ID = 'pypi-copy-plus-version-select';
+const VERSION_SELECT_CLASS = 'pcp-version-select';
+const VERSION_SELECT_STYLE_ID = 'pypi-copy-plus-version-select-style';
+const VERSION_SELECT_MIN_WIDTH_PX = 76;
+const VERSION_SELECT_MAX_WIDTH_PX = 220;
+const VERSION_SELECT_ARROW_RESERVE_PX = 32;
+const VERSION_SELECT_MIN_HEIGHT_PX = 24;
+const VERSION_SELECT_MAX_HEIGHT_PX = 44;
+
+type PypiProjectJson = {
+  info?: { version?: string };
+  releases?: Record<string, unknown>;
+};
+
+const pypiVersionsCache = new Map<string, { versions: string[]; latest?: string }>();
+const pypiVersionsPromiseCache = new Map<string, Promise<{ versions: string[]; latest?: string } | undefined>>();
+
 export default defineContentScript({
   matches: ['*://pypi.org/project/*'],
   main() {
@@ -70,6 +87,370 @@ export default defineContentScript({
     });
   },
 });
+
+function sortVersionsDesc(versions: string[]): string[] {
+  const collator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+  return [...versions].sort((a, b) => collator.compare(b, a));
+}
+
+async function getPypiVersions(packageName: string): Promise<{ versions: string[]; latest?: string } | undefined> {
+  const cached = pypiVersionsCache.get(packageName);
+  if (cached) return cached;
+
+  const inFlight = pypiVersionsPromiseCache.get(packageName);
+  if (inFlight) return inFlight;
+
+  const promise: Promise<{ versions: string[]; latest?: string } | undefined> = (async () => {
+    try {
+      const response = await fetch(`https://pypi.org/pypi/${encodeURIComponent(packageName)}/json`);
+      if (!response.ok) return;
+
+      const data = (await response.json()) as PypiProjectJson;
+      const versions = Object.keys(data.releases ?? {}).filter(Boolean);
+      const sortedVersions = sortVersionsDesc(versions);
+      const latest = data.info?.version?.trim() || undefined;
+
+      if (latest) {
+        const latestIndex = sortedVersions.indexOf(latest);
+        if (latestIndex > 0) {
+          sortedVersions.splice(latestIndex, 1);
+          sortedVersions.unshift(latest);
+        }
+      }
+
+      return { versions: sortedVersions, latest };
+    } catch {
+      return;
+    }
+  })();
+
+  pypiVersionsPromiseCache.set(packageName, promise);
+  const result = await promise;
+  pypiVersionsPromiseCache.delete(packageName);
+  if (result) {
+    pypiVersionsCache.set(packageName, result);
+  }
+  return result;
+}
+
+function ensureVersionSelectStyle(): void {
+  if (document.getElementById(VERSION_SELECT_STYLE_ID)) return;
+
+  const style = document.createElement('style');
+  style.id = VERSION_SELECT_STYLE_ID;
+  style.textContent = `
+    .${VERSION_SELECT_CLASS} {
+      margin: 0 6px;
+      width: auto;
+      max-width: 120px;
+      min-width: 0;
+      height: 32px;
+      padding: 0 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(27, 31, 36, 0.15);
+      background-color: var(--pcp-version-select-bg, rgba(175, 184, 193, 0.2));
+      color: inherit;
+      font: inherit;
+      vertical-align: middle;
+      cursor: pointer;
+      flex: 0 1 auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color-scheme: light dark;
+    }
+
+    .${VERSION_SELECT_CLASS}:focus-visible {
+      outline: 2px solid rgba(9, 105, 218, 0.5);
+      outline-offset: 2px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .${VERSION_SELECT_CLASS} {
+        border-color: rgba(240, 246, 252, 0.2);
+        background-color: var(--pcp-version-select-bg, rgba(240, 246, 252, 0.08));
+      }
+
+      .${VERSION_SELECT_CLASS}:focus-visible {
+        outline-color: rgba(88, 166, 255, 0.6);
+      }
+
+      .${VERSION_SELECT_CLASS} option {
+        background-color: var(--pcp-version-select-bg, rgba(240, 246, 252, 0.08));
+      }
+    }
+
+    .${VERSION_SELECT_CLASS}:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    .${VERSION_SELECT_CLASS} option {
+      background-color: var(--pcp-version-select-bg, rgba(175, 184, 193, 0.2));
+      color: inherit;
+    }
+  `;
+
+  (document.head || document.documentElement).appendChild(style);
+}
+
+function createSelectOption(value: string, label: string, disabled: boolean = false): HTMLOptionElement {
+  const option = document.createElement('option');
+  option.value = value;
+  option.textContent = label;
+  option.disabled = disabled;
+  return option;
+}
+
+function setVersionSelectLabel(versionSelect: HTMLSelectElement, label: string): void {
+  versionSelect.dataset.pcpVersionLabel = label;
+  versionSelect.setAttribute('aria-label', label);
+}
+
+function updateVersionSelectTitle(versionSelect: HTMLSelectElement): void {
+  const label = versionSelect.dataset.pcpVersionLabel || 'Version';
+  const version = versionSelect.value.trim();
+  versionSelect.title = version ? `${label}: ${version}` : label;
+}
+
+let versionSelectMeasureContext: CanvasRenderingContext2D | null | undefined;
+
+function measureTextWidthPx(text: string, font: string): number {
+  const normalizedText = text.trim();
+  if (!normalizedText) return 0;
+
+  if (versionSelectMeasureContext === undefined) {
+    versionSelectMeasureContext = document.createElement('canvas').getContext('2d');
+  }
+
+  const context = versionSelectMeasureContext;
+  if (!context) {
+    return normalizedText.length * 8;
+  }
+
+  context.font = font;
+  return context.measureText(normalizedText).width;
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function syncVersionSelectHeight(versionSelect: HTMLSelectElement, copyButton: HTMLElement): void {
+  const apply = () => {
+    const rect = copyButton.getBoundingClientRect();
+    if (!rect.height) return;
+
+    versionSelect.style.height = `${clampNumber(
+      Math.round(rect.height),
+      VERSION_SELECT_MIN_HEIGHT_PX,
+      VERSION_SELECT_MAX_HEIGHT_PX,
+    )}px`;
+
+    const style = window.getComputedStyle(copyButton);
+    if (style.borderRadius) {
+      versionSelect.style.borderRadius = style.borderRadius;
+    }
+  };
+
+  apply();
+  window.requestAnimationFrame(apply);
+}
+
+function isTransparentColor(value: string): boolean {
+  const normalized = value.replace(/\s+/g, '').toLowerCase();
+  return normalized === 'transparent' || normalized === 'rgba(0,0,0,0)';
+}
+
+function findNonTransparentBackgroundColor(element: Element | null): string | undefined {
+  let current: Element | null = element;
+  while (current) {
+    const bgColor = window.getComputedStyle(current).backgroundColor;
+    if (bgColor && !isTransparentColor(bgColor)) return bgColor;
+    current = current.parentElement;
+  }
+  return;
+}
+
+function syncVersionSelectBackground(
+  versionSelect: HTMLSelectElement,
+  pipCommandElement: HTMLElement,
+  copyButton: HTMLElement | undefined,
+): void {
+  const bgColor =
+    findNonTransparentBackgroundColor(pipCommandElement) ||
+    (copyButton ? findNonTransparentBackgroundColor(copyButton) : undefined);
+
+  if (bgColor) {
+    versionSelect.style.setProperty('--pcp-version-select-bg', bgColor);
+    return;
+  }
+
+  versionSelect.style.removeProperty('--pcp-version-select-bg');
+}
+
+function updateVersionSelectMaxWidth(versionSelect: HTMLSelectElement, longestOptionLabel: string): void {
+  const computedStyle = window.getComputedStyle(versionSelect);
+  const font = computedStyle.font || `${computedStyle.fontSize} ${computedStyle.fontFamily}`;
+
+  const paddingLeft = Number.parseFloat(computedStyle.paddingLeft) || 0;
+  const paddingRight = Number.parseFloat(computedStyle.paddingRight) || 0;
+  const borderLeft = Number.parseFloat(computedStyle.borderLeftWidth) || 0;
+  const borderRight = Number.parseFloat(computedStyle.borderRightWidth) || 0;
+
+  const textWidth = measureTextWidthPx(longestOptionLabel, font);
+  const estimatedWidth = Math.ceil(
+    textWidth + paddingLeft + paddingRight + borderLeft + borderRight + VERSION_SELECT_ARROW_RESERVE_PX,
+  );
+  const clampedWidth = clampNumber(estimatedWidth, VERSION_SELECT_MIN_WIDTH_PX, VERSION_SELECT_MAX_WIDTH_PX);
+  versionSelect.style.maxWidth = `${clampedWidth}px`;
+}
+
+function looksLikeCopyButton(button: HTMLElement): boolean {
+  const clipboardTarget = button.getAttribute('data-clipboard-target')?.toLowerCase() || '';
+  if (clipboardTarget.includes('pip-command')) return true;
+
+  const ariaLabel = button.getAttribute('aria-label')?.toLowerCase() || '';
+  if (ariaLabel.includes('copy')) return true;
+
+  const title = button.getAttribute('title')?.toLowerCase() || '';
+  if (title.includes('copy')) return true;
+
+  const className = typeof button.className === 'string' ? button.className.toLowerCase() : '';
+  if (className.includes('copy')) return true;
+
+  const text = (button.textContent || '').trim().toLowerCase();
+  return text === 'copy';
+}
+
+function findCopyButtonNearPipCommand(pipCommandElement: HTMLElement): HTMLElement | undefined {
+  let container: HTMLElement | null = pipCommandElement.parentElement;
+  for (let depth = 0; depth < 4 && container; depth += 1) {
+    const buttons = Array.from(container.querySelectorAll('button'));
+
+    const exactMatch = buttons.find((button) => button.getAttribute('data-clipboard-target') === '#pip-command');
+    if (exactMatch) return exactMatch;
+
+    const heuristicMatch = buttons.find(looksLikeCopyButton);
+    if (heuristicMatch) return heuristicMatch;
+
+    container = container.parentElement;
+  }
+
+  return;
+}
+
+function ensureVersionSelect(pipCommandElement: HTMLElement, placeholderLabel: string): HTMLSelectElement {
+  const copyButton = findCopyButtonNearPipCommand(pipCommandElement);
+
+  const existing = document.getElementById(VERSION_SELECT_ID);
+  if (existing instanceof HTMLSelectElement) {
+    if (copyButton) {
+      syncVersionSelectHeight(existing, copyButton);
+    }
+    syncVersionSelectBackground(existing, pipCommandElement, copyButton);
+    return existing;
+  }
+
+  const select = document.createElement('select');
+  select.id = VERSION_SELECT_ID;
+  select.className = VERSION_SELECT_CLASS;
+  setVersionSelectLabel(select, placeholderLabel);
+  updateVersionSelectTitle(select);
+  select.disabled = true;
+  select.appendChild(createSelectOption('', placeholderLabel));
+  select.appendChild(createSelectOption('__loading__', '…', true));
+
+  if (copyButton) {
+    copyButton.insertAdjacentElement('beforebegin', select);
+    syncVersionSelectHeight(select, copyButton);
+    syncVersionSelectBackground(select, pipCommandElement, copyButton);
+    return select;
+  }
+
+  pipCommandElement.insertAdjacentElement('afterend', select);
+  syncVersionSelectBackground(select, pipCommandElement, undefined);
+  return select;
+}
+
+function updatePipCommandText(pipCommandElement: HTMLElement, command: string): void {
+  pipCommandElement.textContent = command;
+
+  if (pipCommandElement.hasAttribute('data-clipboard-text')) {
+    pipCommandElement.setAttribute('data-clipboard-text', command);
+  }
+}
+
+async function ensureVersionSelectOptions(
+  versionSelect: HTMLSelectElement,
+  packageName: string,
+  selectedVersion: string | undefined,
+  placeholderLabel: string,
+): Promise<void> {
+  const loadedFor = versionSelect.getAttribute('data-pcp-loaded-for');
+  setVersionSelectLabel(versionSelect, placeholderLabel);
+  if (loadedFor === packageName) {
+    const placeholderOption = Array.from(versionSelect.options).find((option) => option.value === '');
+    if (placeholderOption) placeholderOption.textContent = placeholderLabel;
+
+    const normalizedSelected = selectedVersion?.trim();
+    const hasSelectedOption = normalizedSelected
+      ? Array.from(versionSelect.options).some((option) => option.value === normalizedSelected)
+      : false;
+
+    if (normalizedSelected && hasSelectedOption) {
+      versionSelect.value = normalizedSelected;
+    } else {
+      versionSelect.value = '';
+    }
+
+    const longestVersionLabel = versionSelect.dataset.pcpLongestVersionLabel || '';
+    const widthBasisLabel =
+      longestVersionLabel.length > placeholderLabel.length ? longestVersionLabel : placeholderLabel;
+    updateVersionSelectMaxWidth(versionSelect, widthBasisLabel);
+    updateVersionSelectTitle(versionSelect);
+    return;
+  }
+
+  versionSelect.disabled = true;
+  versionSelect.replaceChildren(createSelectOption('', placeholderLabel), createSelectOption('__loading__', '…', true));
+
+  const result = await getPypiVersions(packageName);
+  const versions = result?.versions ?? [];
+  if (versions.length === 0) {
+    versionSelect.style.display = 'none';
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  fragment.appendChild(createSelectOption('', placeholderLabel));
+  let longestVersionLabel = '';
+  for (const version of versions) {
+    if (version.length > longestVersionLabel.length) {
+      longestVersionLabel = version;
+    }
+    fragment.appendChild(createSelectOption(version, version));
+  }
+
+  versionSelect.replaceChildren(fragment);
+  versionSelect.disabled = false;
+  versionSelect.style.display = '';
+  versionSelect.setAttribute('data-pcp-loaded-for', packageName);
+  versionSelect.dataset.pcpLongestVersionLabel = longestVersionLabel;
+  const widthBasisLabel =
+    longestVersionLabel.length > placeholderLabel.length ? longestVersionLabel : placeholderLabel;
+  updateVersionSelectMaxWidth(versionSelect, widthBasisLabel);
+
+  const normalizedSelected = selectedVersion?.trim();
+  if (normalizedSelected && versions.includes(normalizedSelected)) {
+    versionSelect.value = normalizedSelected;
+    updateVersionSelectTitle(versionSelect);
+    return;
+  }
+
+  versionSelect.value = '';
+  updateVersionSelectTitle(versionSelect);
+}
 
 async function replacePipCommand() {
   const preferredManager = await getPreferredPackageManager();
@@ -100,13 +481,30 @@ async function replacePipCommand() {
     return;
   }
 
-  const newCommand = packageManager.addCommand(packageName);
-  pipCommandElement.textContent = newCommand;
-  
-  // 更新 clipboard 属性
-  if (pipCommandElement.hasAttribute('data-clipboard-text')) {
-    pipCommandElement.setAttribute('data-clipboard-text', newCommand);
-  }
+  const languagePreference = await getLanguagePreference();
+  const resolvedLanguage = resolveLanguage(languagePreference);
+  const translateMessage = (key: string) => translate(resolvedLanguage, key);
+  const placeholderLabel = translateMessage('versionPlaceholder');
+
+  const selectedVersion = pipCommandElement.getAttribute('data-package-version')?.trim() || undefined;
+
+  ensureVersionSelectStyle();
+  const versionSelect = ensureVersionSelect(pipCommandElement, placeholderLabel);
+  void ensureVersionSelectOptions(versionSelect, packageName, selectedVersion, placeholderLabel);
+
+  versionSelect.onchange = () => {
+    const version = versionSelect.value.trim() || undefined;
+    if (version) {
+      pipCommandElement.setAttribute('data-package-version', version);
+    } else {
+      pipCommandElement.removeAttribute('data-package-version');
+    }
+
+    updatePipCommandText(pipCommandElement, packageManager.addCommand(packageName, version));
+    updateVersionSelectTitle(versionSelect);
+  };
+
+  updatePipCommandText(pipCommandElement, packageManager.addCommand(packageName, selectedVersion));
 }
 
 function getPackageNameFromUrl(): string | undefined {
@@ -121,9 +519,13 @@ function getPackageNameFromUrl(): string | undefined {
 
 function getPackageNameFromText(text: string): string | undefined {
   const match = text.match(
-    /(?:pip install|uv add|poetry add|pipenv install|conda install|pdm add|rye add|hatch add)\s+(.+)/,
+    /(?:pip install|uv add|poetry add|pipenv install|conda install|pdm add|rye add|hatch add)\s+([^\s]+)/,
   );
-  return match?.[1]?.trim();
+  const requirement = match?.[1]?.trim();
+  if (!requirement) return;
+
+  const [rawName] = requirement.split(/==|=|@/);
+  return rawName?.trim();
 }
 
 async function initFloatingSettingsUi(): Promise<void> {

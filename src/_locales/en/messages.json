@@ -38,6 +38,9 @@
   "themeSystem": {
     "message": "System"
   },
+  "versionPlaceholder": {
+    "message": "Select version"
+  },
   "saveButton": {
     "message": "Save"
   },

@@ -16,6 +16,7 @@ A browser extension that replaces the default `pip install <package>` command on
 ## Features
 
 - 8 package managers: `pip`, `uv`, `Poetry`, `Pipenv`, `Conda`, `PDM`, `Rye`, `Hatch`
+- Optional version pinning: a version dropdown next to the install command (default: no version)
 - Popup UI + in-page panel: theme (light/dark/system), language (Auto/EN/简体/繁體), and manager selection with icons
 - In-page floating settings button (draggable) for quick access on PyPI pages
 - Instant updates: changing settings updates all open PyPI tabs (no refresh required)

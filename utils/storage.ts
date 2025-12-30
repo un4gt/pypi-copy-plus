@@ -92,6 +92,7 @@ export async function getLanguagePreference(): Promise<LanguagePreference> {
 export async function setLanguagePreference(language: LanguagePreference): Promise<void> {
   const validatedLanguage = isLanguagePreference(language) ? language : DEFAULT_LANGUAGE;
   await browser.storage.local.set({ [LANGUAGE_KEY]: validatedLanguage });
+  await notifyContentScripts();
 }
 
 export async function getFloatingButtonPosition(): Promise<FloatingButtonPosition | undefined> {

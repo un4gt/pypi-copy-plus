@@ -38,6 +38,9 @@
   "themeSystem": {
     "message": "跟随系统"
   },
+  "versionPlaceholder": {
+    "message": "可选择版本"
+  },
   "saveButton": {
     "message": "保存"
   },
